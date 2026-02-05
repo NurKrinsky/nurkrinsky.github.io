@@ -2,7 +2,7 @@
 <html lang="he">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>zona_ktana</title>
     <style>
         body {
@@ -10,8 +10,9 @@
             background-color: black; 
             overflow: hidden; 
             height: 100vh; width: 100vw;
-            cursor: none; /* הסתרת הסמן הרגיל */
+            cursor: none; /* הסתרת הסמן במחשב */
             font-family: sans-serif;
+            touch-action: none; /* מונע גלילה בטלפון כדי שהמשחק יעבוד חלק */
         }
 
         /* --- 1. רקע --- */
@@ -22,23 +23,21 @@
             z-index: 1;
         }
 
-        /* --- 2. לבה (אפקט בועות ונוזל) --- */
+        /* --- 2. לבה --- */
         .lava-container {
             position: fixed;
             bottom: 0; left: 0; width: 100%; height: 45vh;
             z-index: 2; pointer-events: none;
-            /* רקע הדרגתי אדום */
             background: linear-gradient(to top, rgba(139, 0, 0, 0.9) 0%, rgba(255, 69, 0, 0.6) 50%, transparent 100%);
         }
         
-        /* הבועות שעולות מהלבה */
         .lava-bubble {
             position: absolute;
             bottom: -60px;
-            background: radial-gradient(circle, #FFD700, #FF4500); /* צהוב-כתום */
+            background: radial-gradient(circle, #FFD700, #FF4500);
             border-radius: 50%;
             opacity: 0.8;
-            filter: blur(5px); /* טשטוש קל */
+            filter: blur(5px);
             animation: riseUp linear infinite;
         }
 
@@ -47,18 +46,20 @@
             100% { transform: translateY(-50vh) scale(1.5); opacity: 0; }
         }
 
-        /* --- 3. הגזר (הסמן) --- */
+        /* --- 3. הגזר --- */
         #custom-cursor {
             position: fixed; 
-            /* כאן אנחנו קובעים את הגודל על המסך */
             width: 140px; 
             pointer-events: none; 
             z-index: 10000;
-            filter: drop-shadow(0 5px 15px rgba(0,0,0,0.6)); /* צל שחור מתחת לגזר */
-            transform: translate(-30%, -30%) rotate(-15deg); /* זווית קטנה */
+            filter: drop-shadow(0 5px 15px rgba(0,0,0,0.6));
+            transform: translate(-30%, -30%) rotate(-15deg);
+            /* בטלפון נתחיל אותו מחוץ למסך שלא יפריע עד שנוגעים */
+            left: -200px;
+            top: -200px;
         }
 
-        /* חתיכות כתומות שנופלות מהגזר */
+        /* חתיכות נופלות */
         .carrot-particle {
             position: fixed;
             width: 12px; height: 12px;
@@ -74,7 +75,7 @@
             100% { opacity: 0; transform: translate(10px, 120px) scale(0.2); }
         }
 
-        /* --- 4. המלפפונים (הגדרות בסיס) --- */
+        /* --- 4. המלפפונים --- */
         .cucumber {
             position: fixed; top: -200px; 
             pointer-events: none; z-index: 5;
@@ -95,27 +96,48 @@
     <img id="custom-cursor" src="carrot.png" onerror="this.src='https://pngimg.com/d/carrot_PNG4985.png'" alt="Carrot">
 
     <script>
-        // --- 1. גזר וחתיכות נופלות ---
         const cursor = document.getElementById('custom-cursor');
         let lastParticleTime = 0;
 
-        document.addEventListener('mousemove', function(e) {
-            // הזזת הגזר
-            cursor.style.left = e.clientX + 'px';
-            cursor.style.top = e.clientY + 'px';
+        // --- פונקציה שמזיזה את הגזר ומייצרת חתיכות ---
+        function moveCarrot(x, y) {
+            cursor.style.left = x + 'px';
+            cursor.style.top = y + 'px';
 
-            // יצירת חתיכות נופלות מהגזר
             const now = Date.now();
-            if (now - lastParticleTime > 40) { // קצב החלקיקים
-                createParticle(e.clientX, e.clientY);
+            if (now - lastParticleTime > 40) {
+                createParticle(x, y);
                 lastParticleTime = now;
             }
+        }
+
+        // --- 1. אירועים למחשב (עכבר) ---
+        document.addEventListener('mousemove', function(e) {
+            moveCarrot(e.clientX, e.clientY);
         });
 
+        // --- 2. אירועים לטלפון (מגע) ---
+        // נגיעה במסך
+        document.addEventListener('touchstart', function(e) {
+            const touch = e.touches[0];
+            moveCarrot(touch.clientX, touch.clientY);
+            // מייצר חתיכה מיד בנגיעה הראשונה
+            createParticle(touch.clientX, touch.clientY); 
+        }, {passive: false});
+
+        // גרירה על המסך
+        document.addEventListener('touchmove', function(e) {
+            // מונע גלילה של המסך בזמן המשחק
+            e.preventDefault(); 
+            const touch = e.touches[0];
+            moveCarrot(touch.clientX, touch.clientY);
+        }, {passive: false});
+
+
+        // --- יצירת חלקיקים ---
         function createParticle(x, y) {
             const p = document.createElement('div');
             p.classList.add('carrot-particle');
-            // מפזר את החתיכות סביב הסמן
             const offsetX = (Math.random() - 0.5) * 50; 
             const offsetY = (Math.random() - 0.5) * 50;
             p.style.left = (x + offsetX) + 'px';
@@ -124,12 +146,11 @@
             setTimeout(() => p.remove(), 800);
         }
 
-        // --- 2. מלפפונים (קטנים ואיטיים) ---
+        // --- מלפפונים ---
         function createCucumber() {
             const img = document.createElement('img');
-            img.src = 'cucumber.png'; // טוען את התמונה שלך
+            img.src = 'cucumber.png'; 
             
-            // גיבוי למקרה שהתמונה לא נמצאת
             img.onerror = function() { 
                 this.style.backgroundColor = 'green'; 
                 this.style.width = '40px'; 
@@ -138,44 +159,30 @@
             };
 
             img.classList.add('cucumber');
-            
-            // מיקום אקראי
             img.style.left = Math.random() * 95 + 'vw';
             
-            // מהירות איטית מאוד (ריחוף)
-            const duration = Math.random() * 5 + 5; // בין 5 ל-10 שניות
+            const duration = Math.random() * 5 + 5; 
             img.style.animationDuration = duration + 's';
             
-            // גודל: בין 40 ל-70 פיקסלים (הרבה יותר קטן מהגזר שהוא 140)
             const size = Math.random() * 30 + 40; 
             img.style.width = size + 'px';
-            img.style.height = 'auto'; // שומר על פרופורציה
+            img.style.height = 'auto';
 
             document.body.appendChild(img);
-
             setTimeout(() => img.remove(), duration * 1000);
         }
-        
-        // קצב יצירת המלפפונים
         setInterval(createCucumber, 600);
 
-        // --- 3. בועות לבה ---
+        // --- בועות לבה ---
         function createLavaBubble() {
             const bubble = document.createElement('div');
             bubble.classList.add('lava-bubble');
-            
-            // גודל בועות משתנה
             const size = Math.random() * 60 + 20;
             bubble.style.width = size + 'px';
             bubble.style.height = size + 'px';
-            
             bubble.style.left = Math.random() * 100 + 'vw';
-            
-            // מהירות עליה
             bubble.style.animationDuration = (Math.random() * 3 + 4) + 's'; 
-            
             document.getElementById('lava-box').appendChild(bubble);
-            
             setTimeout(() => bubble.remove(), 7000);
         }
         setInterval(createLavaBubble, 400);
