@@ -28,8 +28,6 @@
             background-position: center; 
             z-index: 1;
         }
-        /* אם התמונה לא עולה, נראה רקע כהה */
-        #background-img:empty { background-color: #222; }
 
         /* --- 2. הלבה הבטוחה (CSS בלבד) --- */
         .lava-beam {
@@ -104,4 +102,39 @@
 
     <script>
         // 1. הזזת הגזר
-        const cursor = document.getElementById('custom-cursor
+        const cursor = document.getElementById('custom-cursor');
+        document.addEventListener('mousemove', function(e) {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+
+        // 2. יצירת מלפפונים
+        function createCucumber() {
+            const cucumber = document.createElement('div');
+            cucumber.classList.add('cucumber');
+            
+            // מיקום אקראי
+            cucumber.style.left = Math.random() * 95 + 'vw';
+            
+            // מהירות נפילה
+            const duration = Math.random() * 2 + 2; 
+            cucumber.style.animationDuration = duration + 's';
+            
+            // סיבוב
+            cucumber.style.transform = 'rotate(' + (Math.random() * 360) + 'deg)';
+
+            document.body.appendChild(cucumber);
+
+            // ניקוי המלפפון בסוף הנפילה
+            setTimeout(function() { 
+                cucumber.remove(); 
+            }, duration * 1000);
+        }
+
+        // הפעלת הגשם כל 150 מילישניות
+        setInterval(createCucumber, 150);
+        
+        console.log("Code loaded successfully");
+    </script>
+</body>
+</html>
