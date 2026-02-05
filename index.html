@@ -1,1 +1,107 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>zona_ktana</title>
+    <style>
+        body {
+            margin: 0; 
+            padding: 0; 
+            background-color: black; 
+            overflow: hidden; 
+            height: 100vh; 
+            width: 100vw;
+            cursor: none; /* מעלים את העכבר הרגיל */
+            font-family: sans-serif;
+        }
 
+        /* --- 1. תמונת הרקע (הכלבה) --- */
+        #background-img {
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            background-image: url('dog.jpg'); 
+            background-size: cover; 
+            background-position: center; 
+            z-index: 1;
+        }
+        /* אם התמונה לא עולה, נראה רקע כהה */
+        #background-img:empty { background-color: #222; }
+
+        /* --- 2. הלבה הבטוחה (CSS בלבד) --- */
+        .lava-beam {
+            position: fixed;
+            bottom: -50px; 
+            left: 0;
+            width: 100%;
+            height: 60vh; 
+            z-index: 2; /* מעל הכלבה */
+            pointer-events: none;
+            /* גרדיאנט אדום לוהט */
+            background: radial-gradient(ellipse at bottom, 
+                rgba(255, 50, 0, 0.9) 0%,    /* אדום אש במרכז */
+                rgba(200, 0, 0, 0.6) 40%,    /* אדום כהה */
+                transparent 75%);            /* שקוף למעלה */
+            filter: blur(20px); 
+            animation: pulse 3s infinite alternate;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.8; transform: scaleY(1); }
+            100% { opacity: 1; transform: scaleY(1.1); }
+        }
+
+        /* --- 3. הגזר (הסמן) --- */
+        #custom-cursor {
+            position: fixed; 
+            width: 80px; 
+            pointer-events: none; 
+            z-index: 10000; /* הכי עליון */
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.5));
+            /* ממקם את הגזר בדיוק על העכבר */
+            transform: translate(-50%, -50%) rotate(-20deg);
+        }
+
+        /* --- 4. המלפפונים הנופלים --- */
+        .cucumber {
+            position: fixed; 
+            top: -150px; 
+            width: 30px; 
+            height: 100px;
+            background: linear-gradient(90deg, #1a5e1a 0%, #32CD32 50%, #228B22 100%);
+            border-radius: 20px;
+            box-shadow: inset 2px 2px 5px rgba(255,255,255,0.3), 0 5px 15px rgba(0,0,0,0.5);
+            pointer-events: none; 
+            z-index: 5;
+            animation: fallDown linear forwards;
+        }
+        /* גבשושיות על המלפפון */
+        .cucumber::after { 
+            content: ''; 
+            position: absolute; 
+            width: 100%; 
+            height: 100%;
+            background-image: radial-gradient(rgba(0,0,0,0.3) 2px, transparent 2px);
+            background-size: 8px 12px; 
+            opacity: 0.6;
+        }
+
+        @keyframes fallDown {
+            to { transform: translateY(120vh) rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="background-img"></div>
+
+    <div class="lava-beam"></div>
+    
+    <img id="custom-cursor" src="carrot.png" onerror="this.src='https://pngimg.com/d/carrot_PNG4985.png'" alt="Carrot">
+
+    <script>
+        // 1. הזזת הגזר
+        const cursor = document.getElementById('custom-cursor
