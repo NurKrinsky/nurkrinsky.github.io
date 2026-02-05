@@ -3,20 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Look at herrrr</title>
+    <title>הכלבה והלבה</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body {
             margin: 0;
             padding: 0;
+            background-color: black;
+            overflow: hidden; /* מונע גלילה */
             height: 100vh;
             width: 100vw;
+        }
+
+        /* הגדרות תמונת הרקע של הכלבה */
+        #background-img {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background-image: url('dog.jpg'); 
-            background-size: cover;
+            background-size: cover; /* או contain אם את רוצה שיראו את כל הקולאז' */
             background-position: center;
-            background-repeat: no-repeat;
+            z-index: 1; /* שכבה תחתונה */
+        }
+
+        /* הקנבס של הלבה */
+        #lava-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60%; /* הלבה תתפוס את ה-60% התחתונים של המסך */
+            z-index: 2; /* שכבה עליונה */
+            pointer-events: none; /* כדי שאפשר יהיה ללחוץ על דברים מתחת אם יהיו */
         }
     </style>
 </head>
 <body>
+
+    <div id="background-img"></div>
+
+    <div id="lava-container"></div>
+
+    <script>
+        // --- קוד ה-Shader (המתמטיקה של הלבה) ---
+        const VERT = `
+            precision highp float;
+            attribute vec3 position;
+            void main(){
+                gl_Position = vec4(position, 1.0);
+            }
+        `;
+
+        const FRAG = `
+            #ifdef GL_ES
+            #extension GL_OES_standard_derivatives : enable
+            #endif
+            precision highp float;
+            
+            uniform float iTime;
+            uniform vec3 iResolution;
+            uniform vec3 uColor;
+            
+            // פרמטרים של הלבה
+            #define PI 3.14159265359
+            #define TWO_PI 6.28318530718
+            
+            // פונקציות עזר לציור
+            float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+34.123);return fract(p.x*p.y);}
+            float vnoise(vec2 p){
+                vec2 i=floor(p),f=fract(p);
+                vec2 u=f*f*(3.0-2.0*f);
+                float a=h21(i),b=h21(i+vec2(1,0)),c=h21(i+vec2(0,1)),d=h21(i+vec2(1,1));
+                return mix(mix(a,b,u.x),mix(c,d,u.x),u.y);
+            }
+            float fbm2(vec2 p){
+                float v=0.0,amp=0.6; 
+                for(int i=0;i<5;++i){v+=amp*vnoise(p); p=p*2.03+1.0; amp*=0.5;}
+                return v;
+            }
+
+            void mainImage(out vec4 fc, in vec2 frag){
+                vec2 uv = (frag - 0.5 * iResolution.xy) / iResolution.y;
+                
+                // יצירת הקרן (השפיץ)
+                float x = uv.x;
+                float y = uv.y + 0.5; // ממקם את הבסיס למטה
+                
+                // תנועה וגלים
+                float flow = sin(y * 10.0 - iTime * 2.0) * 0.05;
+                float beamWidth = 0.15 * exp(-y * 2.5); // השפיץ נהיה צר למעלה
+                float beam = 0.02 / (abs(x + flow) + beamWidth * 0.1);
+                
+                // הוספת "ערפל" ועשן
+                float noise = fbm2(uv * 5.0 + vec2(0, -iTime * 0.5));
+                float fog = smoothstep(0.0, 1.0, noise) * 0.5 * (1.0 - y);
+                
+                vec3 col = uColor * (beam + fog);
+                
+                // חיתוך הקצוות שיראה יפה
+                float alpha = beam + fog;
+                alpha = clamp(alpha, 0.0, 1.0);
+                
+                fc = vec4(col, alpha);
+            }
+
+            void main(){
+                mainImage(gl_FragColor, gl_FragCoord.xy);
+            }
+        `;
+
+        // --- הגדרת המנוע הגרפי (Three.js) ---
+        function initLava() {
+            const container = document.getElementById('lava-container');
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true }); // alpha: true עושה רקע שקוף
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+
+            const scene = new THREE.Scene();
+            const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+            // יצירת משטח עליו נצייר
+            const geometry = new THREE.PlaneGeometry(2, 2);
+
+            // העברת נתונים לכרטיס המסך
+            const uniforms = {
+                iTime: { value: 0 },
+                iResolution: { value: new THREE.Vector3(container.clientWidth, container.clientHeight, 1) },
+                uColor: { value: new THREE.Vector3(1.0, 0.2, 0.0) } // צבע אדום-כתום (RGB)
+            };
+
+            const material = new THREE.ShaderMaterial({
+                vertexShader: VERT,
+                fragmentShader: FRAG,
+                uniforms: uniforms,
+                transparent: true
+            });
+
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+
+            // לולאת האנימציה
+            function animate(time) {
+                requestAnimationFrame(animate);
+                uniforms.iTime.value = time * 0.001; // המרת מילישניות לשניות
+                renderer.render(scene, camera);
+            }
+            animate(0);
+
+            // טיפול בשינוי גודל מסך
+            window.addEventListener('resize', () => {
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                renderer.setSize(w, h);
+                uniforms.iResolution.value.set(w, h, 1);
+            });
+        }
+
+        // הפעלת הלבה כשהדף נטען
+        window.onload = initLava;
+    </script>
 </body>
 </html>
