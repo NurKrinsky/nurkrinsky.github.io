@@ -1,1 +1,1 @@
-# nurkrinsky.github.il
+# nurkrinsky.github.io
