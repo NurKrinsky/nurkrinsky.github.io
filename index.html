@@ -13,35 +13,34 @@
             overflow: hidden;
             height: 100vh;
             width: 100vw;
-            
-            /* --- הגדרת הגזר האמיתי --- */
-            /* חשוב: ודאי שהעלית קובץ בשם carrot.png לגיט-האב! */
-            cursor: url('carrot.png') 0 0, auto; 
+            cursor: none; /* --- מסתיר את הסמן הרגיל לגמרי --- */
         }
 
-        /* עיצוב חתיכות הגזר הנופלות */
+        /* --- הגזר שזז עם העכבר (במקום סמן) --- */
+        #custom-cursor {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 60px; /* את יכולה לשנות את המספר הזה כדי להגדיל/להקטין את הגזר */
+            pointer-events: none; /* שהגזר לא יפריע ללחיצות */
+            z-index: 10000; /* שיהיה מעל הכל */
+            transform: translate(-10px, -10px); /* תיקון קטן שיהיה בול על הקצה */
+        }
+
+        /* --- חתיכות גזר נופלות (גדולות יותר) --- */
         .carrot-piece {
             position: fixed;
-            width: 20px;  /* הגדלתי ל-20 פיקסלים כדי שיראו טוב */
-            height: 20px;
             background-color: #FF8C00;
-            border-radius: 50% 30% 50% 40%; /* צורה טיפה יותר מעוגלת וטבעית */
+            border-radius: 50% 40% 50% 30%;
             pointer-events: none;
             z-index: 9999;
-            box-shadow: 0 0 8px rgba(255, 140, 0, 0.6); /* הוספתי זוהר שיראו אותן בולט */
-            /* אנימציה מהירה */
+            box-shadow: 0 0 10px rgba(255, 140, 0, 0.8);
             animation: fallAndFade 1.0s linear forwards;
         }
 
         @keyframes fallAndFade {
-            0% { 
-                opacity: 1; 
-                transform: translateY(0) rotate(0deg) scale(1); 
-            }
-            100% { 
-                opacity: 0; 
-                transform: translateY(200px) rotate(360deg) scale(0.5); 
-            }
+            0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+            100% { opacity: 0; transform: translateY(250px) rotate(360deg) scale(0.8); }
         }
 
         #background-img {
@@ -63,44 +62,53 @@
 
     <div id="background-img"></div>
     <div id="lava-container"></div>
+    
+    <img id="custom-cursor" src="carrot.png" alt="Carrot Cursor">
 
     <script>
-        // --- 1. שובל חתיכות הגזר (משופר!) ---
-        let lastPieceTime = 0;
+        // --- 1. הזזת הגזר עם העכבר ---
+        const cursorImg = document.getElementById('custom-cursor');
+        
         document.addEventListener('mousemove', function(e) {
+            // הזזת תמונת הגזר למיקום העכבר
+            cursorImg.style.left = e.clientX + 'px';
+            cursorImg.style.top = e.clientY + 'px';
+
+            // --- 2. יצירת חתיכות נופלות ---
+            createFallingPiece(e.clientX, e.clientY);
+        });
+
+        let lastPieceTime = 0;
+        function createFallingPiece(x, y) {
             const now = Date.now();
-            // שיניתי מ-40 ל-15 -> עכשיו זה ייצר פי 3 יותר חתיכות!
-            if (now - lastPieceTime < 15) return; 
+            if (now - lastPieceTime < 20) return; // קצב יצירה
             lastPieceTime = now;
 
             const piece = document.createElement('div');
             piece.classList.add('carrot-piece');
             
-            // פיזור אקראי כדי שזה ייראה כמו שובל עבה
-            const x = e.clientX + (Math.random() * 30 - 15);
-            const y = e.clientY + (Math.random() * 30 - 15);
-            
-            piece.style.left = x + 'px';
-            piece.style.top = y + 'px';
-            
-            // צבעים משתנים טיפה בין כתום לצהוב שייראה מעניין
-            const hue = 30 + Math.random() * 10; // גווני כתום
-            piece.style.backgroundColor = `hsl(${hue}, 100%, 50%)`;
+            // גודל רנדומלי בין 15 ל-30 פיקסלים (שיהיה גדול וברור)
+            const size = 15 + Math.random() * 15;
+            piece.style.width = size + 'px';
+            piece.style.height = size + 'px';
 
+            // פיזור אקראי
+            const randX = x + (Math.random() * 40 - 20);
+            const randY = y + (Math.random() * 40 - 20);
+            
+            piece.style.left = randX + 'px';
+            piece.style.top = randY + 'px';
+            
             document.body.appendChild(piece);
-            
-            // מחיקה
             setTimeout(() => { piece.remove(); }, 1000);
-        });
+        }
 
-        // --- 2. מנוע הלבה (קוד יציב) ---
+        // --- 3. מנוע הלבה ---
         const VERT = `void main() { gl_Position = vec4( position, 1.0 ); }`;
         const FRAG = `
             uniform vec2 u_resolution;
             uniform float u_time;
-            
             float random (in vec2 _st) { return fract(sin(dot(_st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
-            
             float noise (in vec2 _st) {
                 vec2 i = floor(_st); vec2 f = fract(_st);
                 float a = random(i); float b = random(i + vec2(1.0, 0.0));
@@ -108,37 +116,28 @@
                 vec2 u = f * f * (3.0 - 2.0 * f);
                 return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
             }
-
             float fbm ( in vec2 _st) {
                 float v = 0.0; float a = 0.5; vec2 shift = vec2(100.0);
                 for (int i = 0; i < 5; ++i) { v += a * noise(_st); _st = _st * 2.0 + shift; a *= 0.5; }
                 return v;
             }
-
             void main() {
                 vec2 st = gl_FragCoord.xy/u_resolution.xy;
-                // יצירת צורת הקרן
                 vec2 q = vec2(0.0);
                 q.x = fbm( st + 0.00 * u_time); q.y = fbm( st + vec2(1.0));
                 vec2 r = vec2(0.0);
                 r.x = fbm( st + 1.0 * q + vec2(1.7,9.2)+ 0.15 * u_time );
                 r.y = fbm( st + 1.0 * q + vec2(8.3,2.8)+ 0.126 * u_time);
                 float f = fbm(st+r);
-
-                // צבעים
                 vec3 color = mix(vec3(0.0), vec3(1.0, 0.2, 0.0), clamp((f*f)*4.0,0.0,1.0));
                 color = mix(color, vec3(1.0, 0.6, 0.1), clamp(length(q),0.0,1.0));
-                
-                // מסכה לקרן
-                float beam = 1.0 - abs(st.x - 0.5) * 5.0; // רוחב
+                float beam = 1.0 - abs(st.x - 0.5) * 5.0; 
                 float fade = 1.0 - st.y; 
                 float alpha = (f * beam * fade * 2.0); 
                 alpha = clamp(alpha, 0.0, 1.0);
-
                 gl_FragColor = vec4(color, alpha);
             }
         `;
-
         function initLava() {
             const container = document.getElementById('lava-container');
             const scene = new THREE.Scene();
