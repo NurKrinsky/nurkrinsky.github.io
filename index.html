@@ -3,59 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>גשם של מלפפונים</title>
+    <title>האתר הסופי</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body {
-            margin: 0;
-            padding: 0;
-            background-color: black;
-            overflow: hidden;
-            height: 100vh;
-            width: 100vw;
-            /* אם את רוצה להחזיר את סמן הגזר, בטלי את ההערה בשורה הבאה */
-            /* cursor: url('carrot.png') 0 0, auto; */
+            margin: 0; padding: 0; background-color: black; overflow: hidden; height: 100vh; width: 100vw;
+            cursor: none; /* מסתיר את העכבר הרגיל */
         }
 
-        /* --- עיצוב המלפפון --- */
+        /* --- הגזר --- */
+        #custom-cursor {
+            position: fixed; width: 60px; pointer-events: none; z-index: 10000;
+            filter: drop-shadow(0 0 5px rgba(0,0,0,0.5));
+            transform: translate(-10px, -10px);
+            display: block;
+        }
+
+        /* --- מלפפונים --- */
         .cucumber {
-            position: fixed;
-            top: -100px; /* מתחיל מחוץ למסך למעלה */
-            width: 25px;  /* רוחב המלפפון */
-            height: 70px; /* אורך המלפפון */
-            /* צבע ירוק מלפפוני עם קצת טקסטורה של פסים */
-            background: linear-gradient(90deg, #228B22 0%, #32CD32 50%, #228B22 100%);
-            border-radius: 15px; /* מעגל את הפינות שייראה כמו ירק */
-            box-shadow: inset 0 0 5px rgba(0,0,0,0.3); /* הצללה פנימית לנפח */
-            pointer-events: none; /* שלא יפריעו ללחיצות */
-            z-index: 5; /* שכבה אמצעית */
-            /* הגדרת האנימציה - השם, משך הזמן (משתנה ב-JS), וסוג התנועה */
-            animation-name: fallDown;
-            animation-timing-function: linear;
-            animation-fill-mode: forwards;
+            position: fixed; top: -100px; width: 25px; height: 80px;
+            background: linear-gradient(90deg, #1a5e1a 0%, #32CD32 40%, #228B22 100%);
+            border-radius: 15px; box-shadow: inset 2px 2px 5px rgba(255,255,255,0.3), 0 5px 10px rgba(0,0,0,0.3);
+            pointer-events: none; z-index: 5; animation: fallDown linear forwards;
         }
-
-        /* אנימציית הנפילה */
+        .cucumber::after {
+            content: ''; position: absolute; width: 100%; height: 100%;
+            background-image: radial-gradient(rgba(0,0,0,0.1) 2px, transparent 2px); background-size: 10px 15px; opacity: 0.5;
+        }
         @keyframes fallDown {
-            0% {
-                transform: translateY(0) rotate(0deg);
-            }
-            100% {
-                /* נופל עד הרבה מתחת לתחתית המסך ומסתובב קצת */
-                transform: translateY(120vh) rotate(360deg);
-            }
+            0% { transform: translateY(0) rotate(0deg); }
+            100% { transform: translateY(120vh) rotate(360deg); }
         }
 
-        /* שאר האלמנטים הקודמים */
+        /* --- רקעים --- */
         #background-img {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background-image: url('dog.jpg'); 
-            background-size: cover;
-            background-position: center;
-            z-index: 1;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: url('dog.jpg'); background-size: cover; background-position: center; z-index: 1;
         }
-
         #lava-container {
             position: fixed; bottom: 0; left: 0; width: 100%; height: 100%;
             z-index: 2; pointer-events: none;
@@ -63,47 +47,40 @@
     </style>
 </head>
 <body>
-
     <div id="background-img"></div>
     <div id="lava-container"></div>
+    
+    <img id="custom-cursor" src="carrot.png" onerror="this.src='https://pngimg.com/d/carrot_PNG4985.png'" alt="Carrot">
 
     <script>
-        // --- מנוע גשם המלפפונים 🥒 ---
+        // --- 1. מנגנון הגזר ---
+        const cursor = document.getElementById('custom-cursor');
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+
+        // --- 2. מנגנון המלפפונים ---
         function createCucumber() {
             const cucumber = document.createElement('div');
             cucumber.classList.add('cucumber');
-
-            // 1. מיקום אקראי לרוחב המסך
             cucumber.style.left = Math.random() * 100 + 'vw';
-
-            // 2. מהירות נפילה אקראית (בין 2 ל-5 שניות)
-            const duration = Math.random() * 3 + 2;
+            const duration = Math.random() * 2 + 2;
             cucumber.style.animationDuration = duration + 's';
-
-            // 3. גודל אקראי (בין 80% ל-120% מהגודל המקורי)
-            const scale = Math.random() * 0.4 + 0.8;
-            // אנחנו מוסיפים גם סיבוב התחלתי אקראי שייראה טבעי
+            const scale = Math.random() * 0.5 + 0.7;
             cucumber.style.transform = `scale(${scale}) rotate(${Math.random() * 360}deg)`;
-
-            // הוספה לדף
             document.body.appendChild(cucumber);
-
-            // מחיקת המלפפון אחרי שהוא מסיים ליפול כדי לא להעמיס על הדפדפן
-            setTimeout(() => {
-                cucumber.remove();
-            }, duration * 1000);
+            setTimeout(() => { cucumber.remove(); }, duration * 1000);
         }
-
-        // יצירת מלפפון חדש כל 200 מילישניות (אפשר לשנות את המספר לקצב מהיר/איטי יותר)
         setInterval(createCucumber, 200);
 
-
-        // --- (אופציונלי) הקוד הקודם של הלבה, שיהיה ---
-        // אם זה מכביד, אפשר למחוק מכאן ועד סוף הסקריפט
+        // --- 3. מנוע הלבה המשופר (אדום ורחב) ---
         const VERT = `void main() { gl_Position = vec4( position, 1.0 ); }`;
         const FRAG = `
             uniform vec2 u_resolution; uniform float u_time;
+            
             float random (in vec2 _st) { return fract(sin(dot(_st.xy, vec2(12.9898,78.233))) * 43758.5453123); }
+            
             float noise (in vec2 _st) {
                 vec2 i = floor(_st); vec2 f = fract(_st);
                 float a = random(i); float b = random(i + vec2(1.0, 0.0));
@@ -111,37 +88,8 @@
                 vec2 u = f * f * (3.0 - 2.0 * f);
                 return mix(a, b, u.x) + (c - a)* u.y * (1.0 - u.x) + (d - b) * u.x * u.y;
             }
+
             float fbm ( in vec2 _st) {
                 float v = 0.0; float a = 0.5; vec2 shift = vec2(100.0);
                 for (int i = 0; i < 5; ++i) { v += a * noise(_st); _st = _st * 2.0 + shift; a *= 0.5; }
                 return v;
-            }
-            void main() {
-                vec2 st = gl_FragCoord.xy/u_resolution.xy; vec2 q = vec2(0.0);
-                q.x = fbm( st + 0.00 * u_time); q.y = fbm( st + vec2(1.0));
-                vec2 r = vec2(0.0); r.x = fbm( st + 1.0 * q + vec2(1.7,9.2)+ 0.15 * u_time ); r.y = fbm( st + 1.0 * q + vec2(8.3,2.8)+ 0.126 * u_time);
-                float f = fbm(st+r);
-                vec3 color = mix(vec3(0.0), vec3(1.0, 0.2, 0.0), clamp((f*f)*4.0,0.0,1.0));
-                color = mix(color, vec3(1.0, 0.6, 0.1), clamp(length(q),0.0,1.0));
-                float beam = 1.0 - abs(st.x - 0.5) * 5.0; float fade = 1.0 - st.y; float alpha = (f * beam * fade * 2.0); alpha = clamp(alpha, 0.0, 1.0);
-                gl_FragColor = vec4(color, alpha);
-            }
-        `;
-        function initLava() {
-            const container = document.getElementById('lava-container');
-            if (!container) return;
-            const scene = new THREE.Scene(); const camera = new THREE.Camera();
-            const renderer = new THREE.WebGLRenderer({ alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            container.appendChild(renderer.domElement);
-            const uniforms = { u_time: { value: 1.0 }, u_resolution: { value: new THREE.Vector2() } };
-            const material = new THREE.ShaderMaterial({ uniforms: uniforms, vertexShader: VERT, fragmentShader: FRAG, transparent: true });
-            scene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material));
-            function animate() { requestAnimationFrame(animate); uniforms.u_time.value += 0.02; uniforms.u_resolution.value.x = renderer.domElement.width; uniforms.u_resolution.value.y = renderer.domElement.height; renderer.render(scene, camera); }
-            animate();
-            window.addEventListener('resize', function() { renderer.setSize(window.innerWidth, window.innerHeight); });
-        }
-        window.onload = initLava;
-    </script>
-</body>
-</html>
