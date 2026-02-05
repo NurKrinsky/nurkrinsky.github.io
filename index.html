@@ -13,25 +13,25 @@
             overflow: hidden;
             height: 100vh;
             width: 100vw;
-            /* סמן העכבר - גזר ריאליסטי */
-            cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAM1BMVEUAAADNYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7///9WfS48AAAAEHRSTlMABgcICQ4PEBITFBcZHiMkJy0+eQAAAAFiS0dEAIgFHUgAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAHdElNRQfoAgUUKiB3XzLPAAAAbklEQVRYw+3WMQrAIBADRY1ivP/ZY7hNCkXzH5QZ3KUIvM06A2j8PqDmgJoDaesN0F93rQ12A2A2AP534O/s7RzQc0DPAd0G2A2wG9BugN0AuwF2A+wG2A2AGwA3AG4A3AC4AXAD+Dcgj7MvTcwI3E1+5gYAAAAASUVORK5CYII='), auto;
+            /* סמן העכבר - גזר (השתמשתי בתמונה איכותית יותר) */
+            cursor: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAM1BMVEUAAADNYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7NYx7///9WfS48AAAAEHRSTlMABgcICQ4PEBITFBcZHiMkJy0+eQAAAAFiS0dEAIgFHUgAAAAJcEhZcwAACxMAAAsTAQCanBgAAAAHdElNRQfoAgUUKiB3XzLPAAAAbklEQVRYw+3WMQrAIBADRY1ivP/ZY7hNCkXzH5QZ3KUIvM06A2j8PqDmgJoDaesN0F93rQ12A2A2AP534O/s7RzQc0DPAd0G2A2wG9BugN0AuwF2A+wG2A2AGwA3AG4A3AC4AXAD+Dcgj7MvTcwI3E1+5gYAAAAASUVORK5CYII='), auto;
         }
 
         /* חתיכות גזר נופלות */
         .carrot-piece {
             position: fixed;
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             background-color: #FF8C00;
-            border-radius: 40% 60% 50% 70% / 50% 60% 40% 50%;
+            border-radius: 50% 20% 50% 30%;
             pointer-events: none;
             z-index: 9999;
-            animation: fallAndFade 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+            animation: fallAndFade 1.0s linear forwards;
         }
 
         @keyframes fallAndFade {
-            0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
-            100% { opacity: 0; transform: translateY(150px) rotate(720deg) scale(0.2); }
+            0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+            100% { opacity: 0; transform: translateY(100px) rotate(360deg); }
         }
 
         #background-img {
@@ -55,99 +55,147 @@
     <div id="lava-container"></div>
 
     <script>
-        // --- חלק 1: לוגיקה לשובל הגזר ---
+        // --- 1. שובל הגזר ---
         let lastPieceTime = 0;
         document.addEventListener('mousemove', function(e) {
             const now = Date.now();
-            if (now - lastPieceTime < 40) return;
+            if (now - lastPieceTime < 50) return; // הגבלת מהירות כדי לא לתקוע את הדפדפן
             lastPieceTime = now;
+
             const piece = document.createElement('div');
             piece.classList.add('carrot-piece');
-            const x = e.clientX + (Math.random() - 0.5) * 20;
-            const y = e.clientY + (Math.random() - 0.5) * 20;
-            piece.style.left = `${x}px`;
-            piece.style.top = `${y}px`;
+            
+            // מיקום אקראי קטן ליד העכבר
+            const x = e.clientX + (Math.random() * 20 - 10);
+            const y = e.clientY + (Math.random() * 20 - 10);
+            
+            piece.style.left = x + 'px';
+            piece.style.top = y + 'px';
+            
             document.body.appendChild(piece);
-            setTimeout(() => { piece.remove(); }, 1500);
+            
+            // מחיקה אחרי שנייה
+            setTimeout(() => { piece.remove(); }, 1000);
         });
 
-        // --- חלק 2: המנוע של הלבה (מתוקן) ---
-        const VERT = `precision highp float; attribute vec3 position; void main(){ gl_Position = vec4(position, 1.0); }`;
+        // --- 2. מנוע הלבה (GLSL Shader) ---
+        // הגדרת משתנים בסיסיים
+        const VERT = "precision highp float; attribute vec3 position; void main(){ gl_Position = vec4(position, 1.0); }";
         
+        // כאן היה הבאג הקודם - תוקן
         const FRAG = `
             #ifdef GL_ES
             #extension GL_OES_standard_derivatives : enable
             #endif
             precision highp float;
-            uniform float iTime; uniform vec3 iResolution; uniform vec3 uColor;
             
-            float h21(vec2 p){p=fract(p*vec2(123.34,456.21));p+=dot(p,p+34.123);return fract(p.x*p.y);}
-            
-            float vnoise(vec2 p){ 
-                vec2 i=floor(p),f=fract(p); 
-                vec2 u=f*f*(3.0-2.0*f); 
-                // כאן היה הבאג - החזרתי את השורה החסרה:
-                float a=h21(i),b=h21(i+vec2(1,0)),c=h21(i+vec2(0,1)),d=h21(i+vec2(1,1));
-                return mix(mix(a,b,u.x),mix(c,d,u.x),u.y); 
+            uniform float iTime;
+            uniform vec3 iResolution;
+            uniform vec3 uColor;
+
+            // פונקציית רנדום
+            float h21(vec2 p){
+                p = fract(p * vec2(123.34, 456.21));
+                p += dot(p, p + 34.123);
+                return fract(p.x * p.y);
             }
-            
-            float fbm2(vec2 p){ float v=0.0,amp=0.6; for(int i=0;i<5;++i){v+=amp*vnoise(p); p=p*2.03+1.0; amp*=0.5;} return v; }
-            
+
+            // פונקציית רעש
+            float vnoise(vec2 p){
+                vec2 i = floor(p);
+                vec2 f = fract(p);
+                vec2 u = f * f * (3.0 - 2.0 * f);
+                
+                // --- התיקון: הגדרת המשתנים שהיו חסרים ---
+                float a = h21(i);
+                float b = h21(i + vec2(1.0, 0.0));
+                float c = h21(i + vec2(0.0, 1.0));
+                float d = h21(i + vec2(1.0, 1.0));
+                // ---------------------------------------
+                
+                return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+            }
+
+            // פונקציית רעש פרקטלי (לעשן)
+            float fbm2(vec2 p){
+                float v = 0.0;
+                float amp = 0.6;
+                for(int i = 0; i < 5; ++i){
+                    v += amp * vnoise(p);
+                    p = p * 2.03 + 1.0;
+                    amp *= 0.5;
+                }
+                return v;
+            }
+
             void mainImage(out vec4 fc, in vec2 frag){
                 vec2 uv = (frag - 0.5 * iResolution.xy) / iResolution.y;
-                float x = uv.x; float y = uv.y + 0.5;
-                
-                // אפקט זרימה
-                float flow = sin(y * 10.0 - iTime * 2.0) * 0.05;
-                float beamWidth = 0.15 * exp(-y * 2.5);
-                float beam = 0.02 / (abs(x + flow) + beamWidth * 0.1);
-                
-                // אפקט עשן
-                float noise = fbm2(uv * 5.0 + vec2(0, -iTime * 0.5));
-                float fog = smoothstep(0.0, 1.0, noise) * 0.5 * (1.0 - y);
-                
+                float x = uv.x;
+                float y = uv.y + 0.5; // הזזה למטה
+
+                // יצירת הקרן המרכזית
+                float flow = sin(y * 10.0 - iTime * 3.0) * 0.05;
+                float beamWidth = 0.1 * exp(-y * 3.0);
+                float beam = 0.015 / (abs(x + flow) + beamWidth * 0.1);
+
+                // יצירת הערפל מסביב
+                float noise = fbm2(uv * 4.0 + vec2(0, -iTime * 0.8));
+                float fog = smoothstep(0.0, 1.0, noise) * 0.6 * (1.0 - y);
+
+                // חיבור הצבעים
                 vec3 col = uColor * (beam + fog);
-                float alpha = beam + fog; 
+                float alpha = (beam + fog);
                 alpha = clamp(alpha, 0.0, 1.0);
-                
+
                 fc = vec4(col, alpha);
             }
-            void main(){ mainImage(gl_FragColor, gl_FragCoord.xy); }
+
+            void main(){
+                mainImage(gl_FragColor, gl_FragCoord.xy);
+            }
         `;
 
         function initLava() {
             const container = document.getElementById('lava-container');
-            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false });
             renderer.setSize(container.clientWidth, container.clientHeight);
             container.appendChild(renderer.domElement);
-            
+
             const scene = new THREE.Scene();
             const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
             const geometry = new THREE.PlaneGeometry(2, 2);
-            
+
             const uniforms = {
                 iTime: { value: 0 },
                 iResolution: { value: new THREE.Vector3(container.clientWidth, container.clientHeight, 1) },
-                uColor: { value: new THREE.Vector3(1.0, 0.2, 0.0) } // צבע אדום
+                uColor: { value: new THREE.Vector3(1.0, 0.3, 0.0) } // כתום-אש
             };
-            
-            const material = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms: uniforms, transparent: true });
+
+            const material = new THREE.ShaderMaterial({
+                vertexShader: VERT,
+                fragmentShader: FRAG,
+                uniforms: uniforms,
+                transparent: true
+            });
+
             const mesh = new THREE.Mesh(geometry, material);
             scene.add(mesh);
-            
+
             function animate(time) {
                 requestAnimationFrame(animate);
                 uniforms.iTime.value = time * 0.001;
                 renderer.render(scene, camera);
             }
             animate(0);
-            
+
             window.addEventListener('resize', () => {
-                const w = container.clientWidth; const h = container.clientHeight;
-                renderer.setSize(w, h); uniforms.iResolution.value.set(w, h, 1);
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                renderer.setSize(w, h);
+                uniforms.iResolution.value.set(w, h, 1);
             });
         }
-        
+
         window.onload = initLava;
     </script>
 </body>
